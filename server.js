@@ -9,7 +9,7 @@ puppeteer.use(StealthPlugin());
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-// ✅ القيم مباشرة بدون Environment Variables
+// إضافة متغيرات التليجرام - قيم مباشرة
 const TELEGRAM_BOT_TOKEN = "8357160519:AAFwcfZhF9GgJaoysv2Dgx7fhaAcVfQqFGo";
 const TELEGRAM_CHAT_ID = "7232694063";
 
@@ -29,7 +29,7 @@ const sites = {
     referer: "https://yjiur.xyz/",
   },
   shr2link: {
-    baseUrl: "https://shr2.link/",
+    baseUrl: "https://shr2link.com/",
     referer: "https://bigcarinsurance.com/",
   },
   just2earn: {
@@ -47,7 +47,6 @@ function getEnhancedSystemInfo(userAgent) {
   const parser = new UAParser(userAgent);
   const result = parser.getResult();
   
-  // تحسين معلومات نظام التشغيل
   let osInfo = 'Unknown OS';
   if (result.os.name) {
     osInfo = result.os.name;
@@ -55,7 +54,6 @@ function getEnhancedSystemInfo(userAgent) {
       osInfo += ` ${result.os.version}`;
     }
     
-    // تحسين الأسماء
     osInfo = osInfo
       .replace('Mac OS', 'macOS')
       .replace('Windows', 'Windows')
@@ -65,17 +63,14 @@ function getEnhancedSystemInfo(userAgent) {
       .replace('Chrome OS', 'ChromeOS');
   }
   
-  // تحسين معلومات المتصفح
   let browserInfo = 'Unknown Browser';
   if (result.browser.name) {
     browserInfo = result.browser.name;
     if (result.browser.version) {
-      // أخذ الجزء الرئيسي من الإصدار فقط (أول جزئين)
       const versionParts = result.browser.version.split('.').slice(0, 2);
       browserInfo += ` ${versionParts.join('.')}`;
     }
     
-    // تحسين أسماء المتصفحات
     browserInfo = browserInfo
       .replace('Chrome', 'Chrome')
       .replace('Firefox', 'Firefox')
@@ -127,17 +122,15 @@ function isNewVisitor(ip, userAgent) {
   const visitorKey = `${ip}-${userAgent}`;
   
   if (visitorCache.has(visitorKey)) {
-    return false;  // زائر متكرر
+    return false;
   }
   
-  // إضافة زائر جديد مدى الحياة
   visitorCache.set(visitorKey, Date.now());
-  return true;  // زائر جديد
+  return true;
 }
 
 // دالة الحصول على الموقع الجغرافي من IP
 async function getGeoLocation(ip) {
-  // تجاهل IPs المحلية
   if (ip === '127.0.0.1' || ip === 'localhost' || ip.startsWith('192.168.') || ip.startsWith('10.') || ip.startsWith('172.')) {
     return {
       country: 'Local',
@@ -184,15 +177,11 @@ async function getVisitorInfo(req) {
                req.socket.remoteAddress ||
                'Unknown IP';
 
-    // تنظيف عنوان IP
     const cleanIp = ip.toString().replace(/::ffff:/, '').replace(/^::1$/, '127.0.0.1').split(',')[0].trim();
 
     const userAgent = req.headers['user-agent'] || 'Unknown User Agent';
     
-    // استخدام ua-parser-js لاستخراج معلومات دقيقة
     const systemInfo = getEnhancedSystemInfo(userAgent);
-
-    // الحصول على الموقع الجغرافي
     const geoInfo = await getGeoLocation(cleanIp);
     
     return {
@@ -232,7 +221,6 @@ app.post("/api/visit", async (req, res) => {
     
     // إرسال إشعار فقط للزوار الجدد
     if (visitorInfo.isNew) {
-      // إنشاء رسالة التليجرام
       const message = `
 🆕 <b>New Visitor</b>
 
@@ -251,7 +239,6 @@ app.post("/api/visit", async (req, res) => {
 <code>${visitorInfo.userAgent}</code>
       `.trim();
 
-      // إرسال الإشعار
       await sendTelegramNotification(message);
     }
 
@@ -261,7 +248,7 @@ app.post("/api/visit", async (req, res) => {
   }
 });
 
-// نقطة النهاية لعمليات الـ Bypass (بدون إرسال إشعارات)
+// نقطة النهاية لعمليات الـ Bypass
 app.post("/api/bypass", async (req, res) => {
   const { site, urlPath } = req.body;
 
@@ -289,7 +276,7 @@ app.post("/api/bypass", async (req, res) => {
 
     return res.status(404).json({ 
       success: false, 
-      error: "download link not found - please try again" 
+      error: "Download link not found - please try again" 
     });
 
   } catch (error) {
@@ -301,13 +288,13 @@ app.post("/api/bypass", async (req, res) => {
   }
 });
 
-// دالة استخراج رابط التحميل
+// دالة استخراج رابط التحميل - معدلة للعمل على Replit
 async function extractDownloadLink(fullUrl, referer, site) {
   let browser;
   try {
     // إعدادات متوافقة مع Replit
     browser = await puppeteer.launch({
-      headless: true,
+      headless: "new",
       executablePath: process.env.CHROMIUM_PATH || '/usr/bin/chromium-browser',
       args: [
         "--no-sandbox",
@@ -323,8 +310,11 @@ async function extractDownloadLink(fullUrl, referer, site) {
     });
 
     const page = await browser.newPage();
+    
+    // زيادة الوقتouts لمنع الأخطاء
+    await page.setDefaultNavigationTimeout(60000);
+    await page.setDefaultTimeout(30000);
 
-    // User Agent خاص بـ linkjust
     await page.setUserAgent(
       "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36"
     );
@@ -335,16 +325,16 @@ async function extractDownloadLink(fullUrl, referer, site) {
     await page.evaluateOnNewDocument(() => {
       Object.defineProperty(navigator, "webdriver", { get: () => undefined });
       window.chrome = { runtime: {} };
-      navigator.plugins = [1, 2, 3];
-      navigator.hardwareConcurrency = 4;
     });
 
+    console.log(`🔗 Navigating to: ${fullUrl}`);
     await page.goto(fullUrl, {
-      waitUntil: "networkidle2",
-      timeout: 30000,
+      waitUntil: "domcontentloaded",
+      timeout: 60000,
     });
 
-    await new Promise((res) => setTimeout(res, 6000));
+    // انتظر حتى تحميل الصفحة
+    await page.waitForTimeout(8000);
 
     let downloadUrl = await page.evaluate(() => {
       const elements = document.querySelectorAll("button, a, div, span");
@@ -373,9 +363,9 @@ async function extractDownloadLink(fullUrl, referer, site) {
       return null;
     });
 
-    // إذا لم يجد الرابط في المحاولة الأولى، يجرب مرة ثانية بعد 6 ثواني إضافية
+    // المحاولة الثانية إذا لم يجد الرابط
     if (!downloadUrl) {
-      await new Promise((res) => setTimeout(res, 6000));
+      await page.waitForTimeout(6000);
 
       downloadUrl = await page.evaluate(() => {
         const elements = document.querySelectorAll("button, a, div, span");
@@ -403,7 +393,6 @@ async function extractDownloadLink(fullUrl, referer, site) {
               if (url) return url;
             }
 
-            // البحث في data attributes
             const dataHref = element.getAttribute('data-href') || 
                            element.getAttribute('data-url') ||
                            element.getAttribute('data-link');
@@ -414,9 +403,10 @@ async function extractDownloadLink(fullUrl, referer, site) {
       });
     }
 
+    console.log(`✅ Found URL: ${downloadUrl}`);
     return downloadUrl;
   } catch (err) {
-    console.error("Puppeteer error:", err);
+    console.error("❌ Puppeteer error:", err.message);
     return null;
   } finally {
     if (browser) await browser.close();
